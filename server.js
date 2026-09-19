@@ -13,18 +13,23 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true } // Note: In production, hash this with bcrypt!
 });
 
+// Hours Schema
 const MonthDataSchema = new mongoose.Schema({
   username: { type: String, required: true },
   month: { type: String, required: true }, // Format "YYYY-MM"
   data: { type: Object, default: {} } // Stores the day objects
-});
+}, { minimize: false });
 
-// New Schema for Expenses
+// Expenses Schema (Updated for nested array reliability)
 const ExpensesDataSchema = new mongoose.Schema({
   username: { type: String, required: true },
   month: { type: String, required: true }, // Format "YYYY-MM"
-  data: { type: Object, default: { fuel: [], food: [], other: [] } } // Stores the categorized expenses
-});
+  data: {
+    fuel: { type: Array, default: [] },
+    food: { type: Array, default: [] },
+    other: { type: Array, default: [] }
+  }
+}, { minimize: false });
 
 MonthDataSchema.index({ username: 1, month: 1 }, { unique: true });
 ExpensesDataSchema.index({ username: 1, month: 1 }, { unique: true });
@@ -72,21 +77,23 @@ app.get('/api/workdata/:username/:month', async (req, res) => {
   }
 });
 
-// Update Day Data (Hours)
+// Update Day Data (Hours - Updated for Reliability)
 app.post('/api/workdata/:username/:month', async (req, res) => {
   try {
     const { username, month } = req.params;
     const dayData = req.body;
 
+    // Fetch existing first to merge the specific day
     let doc = await MonthData.findOne({ username, month });
-    if (!doc) {
-      doc = new MonthData({ username, month, data: {} });
-    }
+    let currentData = doc ? doc.data : {};
+    currentData[dayData.day] = dayData;
+
+    await MonthData.findOneAndUpdate(
+      { username, month },
+      { $set: { data: currentData } },
+      { upsert: true, new: true }
+    );
     
-    doc.data[dayData.day] = dayData;
-    doc.markModified('data');
-    
-    await doc.save();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -103,23 +110,22 @@ app.get('/api/expenses/:username/:month', async (req, res) => {
   }
 });
 
-// Update Expenses Data
+// Update Expenses Data (Updated for Reliability)
 app.post('/api/expenses/:username/:month', async (req, res) => {
   try {
     const { username, month } = req.params;
-    const expensesData = req.body; // Expects the full expenses object: { fuel: [], food: [], other: [] }
+    const expensesData = req.body; // Expects: { fuel: [], food: [], other: [] }
 
-    let doc = await ExpensesData.findOne({ username, month });
-    if (!doc) {
-      doc = new ExpensesData({ username, month, data: expensesData });
-    } else {
-      doc.data = expensesData;
-    }
+    // Using findOneAndUpdate with upsert perfectly overwrites the nested object
+    await ExpensesData.findOneAndUpdate(
+      { username, month },
+      { $set: { data: expensesData } },
+      { upsert: true, new: true }
+    );
     
-    doc.markModified('data');
-    await doc.save();
     res.json({ success: true });
   } catch (err) {
+    console.error("Save Expenses Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
