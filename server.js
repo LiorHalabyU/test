@@ -19,10 +19,19 @@ const MonthDataSchema = new mongoose.Schema({
   data: { type: Object, default: {} } // Stores the day objects
 });
 
+// New Schema for Expenses
+const ExpensesDataSchema = new mongoose.Schema({
+  username: { type: String, required: true },
+  month: { type: String, required: true }, // Format "YYYY-MM"
+  data: { type: Object, default: { fuel: [], food: [], other: [] } } // Stores the categorized expenses
+});
+
 MonthDataSchema.index({ username: 1, month: 1 }, { unique: true });
+ExpensesDataSchema.index({ username: 1, month: 1 }, { unique: true });
 
 const User = mongoose.model('User', UserSchema);
 const MonthData = mongoose.model('MonthData', MonthDataSchema);
+const ExpensesData = mongoose.model('ExpensesData', ExpensesDataSchema);
 
 // --- Routes ---
 
@@ -53,7 +62,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Get Month Data
+// Get Month Data (Hours)
 app.get('/api/workdata/:username/:month', async (req, res) => {
   try {
     const doc = await MonthData.findOne({ username: req.params.username, month: req.params.month });
@@ -63,22 +72,51 @@ app.get('/api/workdata/:username/:month', async (req, res) => {
   }
 });
 
-// Update Day Data
+// Update Day Data (Hours)
 app.post('/api/workdata/:username/:month', async (req, res) => {
   try {
     const { username, month } = req.params;
-    const dayData = req.body; // e.g. { day: 15, start: "09:00", end: "18:00" }
+    const dayData = req.body;
 
     let doc = await MonthData.findOne({ username, month });
     if (!doc) {
       doc = new MonthData({ username, month, data: {} });
     }
     
-    // Update the specific day's data inside the JSON object
     doc.data[dayData.day] = dayData;
-    // Tell mongoose the object changed
     doc.markModified('data');
     
+    await doc.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Expenses Data
+app.get('/api/expenses/:username/:month', async (req, res) => {
+  try {
+    const doc = await ExpensesData.findOne({ username: req.params.username, month: req.params.month });
+    res.json(doc ? doc.data : { fuel: [], food: [], other: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Expenses Data
+app.post('/api/expenses/:username/:month', async (req, res) => {
+  try {
+    const { username, month } = req.params;
+    const expensesData = req.body; // Expects the full expenses object: { fuel: [], food: [], other: [] }
+
+    let doc = await ExpensesData.findOne({ username, month });
+    if (!doc) {
+      doc = new ExpensesData({ username, month, data: expensesData });
+    } else {
+      doc.data = expensesData;
+    }
+    
+    doc.markModified('data');
     await doc.save();
     res.json({ success: true });
   } catch (err) {
