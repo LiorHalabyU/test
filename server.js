@@ -10,7 +10,8 @@ app.use(express.json());
 // --- MongoDB Schemas ---
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
-  password: { type: String, required: true } // Note: In production, hash this with bcrypt!
+  password: { type: String, required: true }, // Note: In production, hash this with bcrypt!
+  theme: { type: String, default: 'light' } // Track dark/light mode preference
 });
 
 // Hours Schema
@@ -20,7 +21,7 @@ const MonthDataSchema = new mongoose.Schema({
   data: { type: Object, default: {} } // Stores the day objects
 }, { minimize: false });
 
-// Expenses Schema (Updated for nested array reliability)
+// Expenses Schema
 const ExpensesDataSchema = new mongoose.Schema({
   username: { type: String, required: true },
   month: { type: String, required: true }, // Format "YYYY-MM"
@@ -47,9 +48,9 @@ app.post('/api/auth/register', async (req, res) => {
     const existing = await User.findOne({ username });
     if (existing) return res.status(400).json({ success: false, message: 'Username exists.' });
     
-    const user = new User({ username, password });
+    const user = new User({ username, password, theme: 'light' });
     await user.save();
-    res.json({ success: true });
+    res.json({ success: true, theme: user.theme });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -61,7 +62,9 @@ app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username, password });
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials.' });
-    res.json({ success: true });
+    
+    // Return theme preference along with login success
+    res.json({ success: true, theme: user.theme || 'light' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -88,6 +91,17 @@ app.post('/api/auth/change-password', async (req, res) => {
   }
 });
 
+// Update Theme
+app.post('/api/auth/theme', async (req, res) => {
+  try {
+    const { username, theme } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { theme } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Get Month Data (Hours)
 app.get('/api/workdata/:username/:month', async (req, res) => {
   try {
@@ -98,7 +112,7 @@ app.get('/api/workdata/:username/:month', async (req, res) => {
   }
 });
 
-// Update Day Data (Hours - Updated for Reliability)
+// Update Day Data (Hours)
 app.post('/api/workdata/:username/:month', async (req, res) => {
   try {
     const { username, month } = req.params;
@@ -131,7 +145,7 @@ app.get('/api/expenses/:username/:month', async (req, res) => {
   }
 });
 
-// Update Expenses Data (Updated for Reliability)
+// Update Expenses Data
 app.post('/api/expenses/:username/:month', async (req, res) => {
   try {
     const { username, month } = req.params;
