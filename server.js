@@ -67,6 +67,27 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Change Password
+app.post('/api/auth/change-password', async (req, res) => {
+  try {
+    const { username, oldPassword, newPassword } = req.body;
+    
+    // Find user with matching current password
+    const user = await User.findOne({ username, password: oldPassword });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid current password.' });
+    }
+    
+    // Update and save new password
+    user.password = newPassword;
+    await user.save();
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Get Month Data (Hours)
 app.get('/api/workdata/:username/:month', async (req, res) => {
   try {
