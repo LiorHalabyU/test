@@ -11,7 +11,8 @@ app.use(express.json());
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true }, // Note: In production, hash this with bcrypt!
-  theme: { type: String, default: 'light' } // Track dark/light mode preference
+  theme: { type: String, default: 'light' }, // Track dark/light mode preference
+  viewMode: { type: String, default: 'list' } // Track List/Calendar preference
 });
 
 // Hours Schema
@@ -48,9 +49,9 @@ app.post('/api/auth/register', async (req, res) => {
     const existing = await User.findOne({ username });
     if (existing) return res.status(400).json({ success: false, message: 'Username exists.' });
     
-    const user = new User({ username, password, theme: 'light' });
+    const user = new User({ username, password, theme: 'light', viewMode: 'list' });
     await user.save();
-    res.json({ success: true, theme: user.theme });
+    res.json({ success: true, theme: user.theme, viewMode: user.viewMode });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -63,8 +64,12 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ username, password });
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials.' });
     
-    // Return theme preference along with login success
-    res.json({ success: true, theme: user.theme || 'light' });
+    // Return preferences along with login success
+    res.json({ 
+      success: true, 
+      theme: user.theme || 'light',
+      viewMode: user.viewMode || 'list'
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -96,6 +101,28 @@ app.post('/api/auth/theme', async (req, res) => {
   try {
     const { username, theme } = req.body;
     await User.findOneAndUpdate({ username }, { $set: { theme } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update View Mode (List vs Calendar)
+app.post('/api/auth/viewmode', async (req, res) => {
+  try {
+    const { username, viewMode } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { viewMode } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update View Mode (Settings - kept for backward compatibility if needed)
+app.post('/api/auth/settings', async (req, res) => {
+  try {
+    const { username, viewMode } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { viewMode } });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
