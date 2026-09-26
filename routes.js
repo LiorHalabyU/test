@@ -2,16 +2,37 @@ const express = require('express');
 const router = express.Router();
 const { User, MonthData, ExpensesData } = require('./models');
 
+const defaultWorkdayHours = {
+  0: 9, 1: 9, 2: 9, 3: 9, 4: 9
+};
+
 // Register
 router.post('/api/auth/register', async (req, res) => {
   try {
     const { username, password } = req.body;
     const existing = await User.findOne({ username });
     if (existing) return res.status(400).json({ success: false, message: 'Username exists.' });
-    
-    const user = new User({ username, password, theme: 'light', viewMode: 'list' });
+
+    const user = new User({
+      username,
+      password,
+      theme: 'light',
+      viewMode: 'list',
+      defaultStartTime: '09:00',
+      defaultEndTime: '18:00',
+      workdayHours: defaultWorkdayHours,
+      workStartDate: ''
+    });
     await user.save();
-    res.json({ success: true, theme: user.theme, viewMode: user.viewMode });
+    res.json({
+      success: true,
+      theme: user.theme,
+      viewMode: user.viewMode,
+      defaultStartTime: user.defaultStartTime,
+      defaultEndTime: user.defaultEndTime,
+      workdayHours: user.workdayHours,
+      workStartDate: user.workStartDate
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -23,11 +44,15 @@ router.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await User.findOne({ username, password });
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials.' });
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       theme: user.theme || 'light',
-      viewMode: user.viewMode || 'list'
+      viewMode: user.viewMode || 'list',
+      defaultStartTime: user.defaultStartTime || '09:00',
+      defaultEndTime: user.defaultEndTime || '18:00',
+      workdayHours: user.workdayHours || defaultWorkdayHours,
+      workStartDate: user.workStartDate || ''
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -40,7 +65,7 @@ router.post('/api/auth/change-password', async (req, res) => {
     const { username, oldPassword, newPassword } = req.body;
     const user = await User.findOne({ username, password: oldPassword });
     if (!user) return res.status(401).json({ success: false, message: 'Invalid current password.' });
-    
+
     user.password = newPassword;
     await user.save();
     res.json({ success: true });
@@ -60,7 +85,7 @@ router.post('/api/auth/theme', async (req, res) => {
   }
 });
 
-// Update View Mode 
+// Update View Mode
 router.post('/api/auth/viewmode', async (req, res) => {
   try {
     const { username, viewMode } = req.body;
@@ -71,11 +96,33 @@ router.post('/api/auth/viewmode', async (req, res) => {
   }
 });
 
-// Update View Mode (Settings)
-router.post('/api/auth/settings', async (req, res) => {
+// Update Default Hours (Global fallback)
+router.post('/api/auth/default-hours', async (req, res) => {
   try {
-    const { username, viewMode } = req.body;
-    await User.findOneAndUpdate({ username }, { $set: { viewMode } });
+    const { username, defaultStartTime, defaultEndTime } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { defaultStartTime, defaultEndTime } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update Specific Workday Target Hours
+router.post('/api/auth/workday-hours', async (req, res) => {
+  try {
+    const { username, workdayHours } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { workdayHours } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update Work Start Date
+router.post('/api/auth/work-start-date', async (req, res) => {
+  try {
+    const { username, workStartDate } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { workStartDate } });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -103,11 +150,11 @@ router.post('/api/workdata/:username/:month', async (req, res) => {
     currentData[dayData.day] = dayData;
 
     await MonthData.findOneAndUpdate(
-      { username, month },
-      { $set: { data: currentData } },
-      { upsert: true, new: true }
+        { username, month },
+        { $set: { data: currentData } },
+        { upsert: true, new: true }
     );
-    
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -131,11 +178,11 @@ router.post('/api/expenses/:username/:month', async (req, res) => {
     const expensesData = req.body;
 
     await ExpensesData.findOneAndUpdate(
-      { username, month },
-      { $set: { data: expensesData } },
-      { upsert: true, new: true }
+        { username, month },
+        { $set: { data: expensesData } },
+        { upsert: true, new: true }
     );
-    
+
     res.json({ success: true });
   } catch (err) {
     console.error("Save Expenses Error:", err.message);
