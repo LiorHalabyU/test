@@ -21,7 +21,8 @@ router.post('/api/auth/register', async (req, res) => {
       defaultStartTime: '09:00',
       defaultEndTime: '18:00',
       workdayHours: defaultWorkdayHours,
-      workStartDate: ''
+      workStartDate: '',
+      cibusCompanyShare: 66.67
     });
     await user.save();
     res.json({
@@ -31,7 +32,8 @@ router.post('/api/auth/register', async (req, res) => {
       defaultStartTime: user.defaultStartTime,
       defaultEndTime: user.defaultEndTime,
       workdayHours: user.workdayHours,
-      workStartDate: user.workStartDate
+      workStartDate: user.workStartDate,
+      cibusCompanyShare: user.cibusCompanyShare
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -52,7 +54,8 @@ router.post('/api/auth/login', async (req, res) => {
       defaultStartTime: user.defaultStartTime || '09:00',
       defaultEndTime: user.defaultEndTime || '18:00',
       workdayHours: user.workdayHours || defaultWorkdayHours,
-      workStartDate: user.workStartDate || ''
+      workStartDate: user.workStartDate || '',
+      cibusCompanyShare: user.cibusCompanyShare ?? 66.67
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -123,6 +126,17 @@ router.post('/api/auth/work-start-date', async (req, res) => {
   try {
     const { username, workStartDate } = req.body;
     await User.findOneAndUpdate({ username }, { $set: { workStartDate } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Update Cibus Company Share
+router.post('/api/auth/cibus-share', async (req, res) => {
+  try {
+    const { username, cibusCompanyShare } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { cibusCompanyShare } });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

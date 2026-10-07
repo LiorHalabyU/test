@@ -16,7 +16,8 @@ const UserSchema = new mongoose.Schema({
   defaultStartTime: { type: String, default: '09:00' },
   defaultEndTime: { type: String, default: '18:00' },
   workdayHours: { type: Object, default: defaultWorkdayHours },
-  workStartDate: { type: String, default: '' }
+  workStartDate: { type: String, default: '' },
+  cibusCompanyShare: { type: Number, default: 66.67 }
 });
 
 const MonthDataSchema = new mongoose.Schema({
