@@ -22,7 +22,9 @@ router.post('/api/auth/register', async (req, res) => {
       defaultEndTime: '18:00',
       workdayHours: defaultWorkdayHours,
       workStartDate: '',
-      cibusCompanyShare: 66.67
+      cibusCompanyShare: 66.67,
+      cibusMonthlyBudget: 900,
+      defaultMealPrice: 45
     });
     await user.save();
     res.json({
@@ -33,7 +35,9 @@ router.post('/api/auth/register', async (req, res) => {
       defaultEndTime: user.defaultEndTime,
       workdayHours: user.workdayHours,
       workStartDate: user.workStartDate,
-      cibusCompanyShare: user.cibusCompanyShare
+      cibusCompanyShare: user.cibusCompanyShare,
+      cibusMonthlyBudget: user.cibusMonthlyBudget,
+      defaultMealPrice: user.defaultMealPrice
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -55,7 +59,9 @@ router.post('/api/auth/login', async (req, res) => {
       defaultEndTime: user.defaultEndTime || '18:00',
       workdayHours: user.workdayHours || defaultWorkdayHours,
       workStartDate: user.workStartDate || '',
-      cibusCompanyShare: user.cibusCompanyShare ?? 66.67
+      cibusCompanyShare: user.cibusCompanyShare ?? 66.67,
+      cibusMonthlyBudget: user.cibusMonthlyBudget ?? 900,
+      defaultMealPrice: user.defaultMealPrice ?? 45
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -132,11 +138,11 @@ router.post('/api/auth/work-start-date', async (req, res) => {
   }
 });
 
-// Update Cibus Company Share
-router.post('/api/auth/cibus-share', async (req, res) => {
+// Update Cibus Settings
+router.post('/api/auth/cibus-settings', async (req, res) => {
   try {
-    const { username, cibusCompanyShare } = req.body;
-    await User.findOneAndUpdate({ username }, { $set: { cibusCompanyShare } });
+    const { username, cibusCompanyShare, cibusMonthlyBudget, defaultMealPrice } = req.body;
+    await User.findOneAndUpdate({ username }, { $set: { cibusCompanyShare, cibusMonthlyBudget, defaultMealPrice } });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
